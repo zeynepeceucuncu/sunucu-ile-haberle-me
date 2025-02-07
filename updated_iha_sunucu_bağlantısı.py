@@ -78,8 +78,8 @@ async def send_telemetry(websocket_function):
                 except Exception as e:
                     print(f"yanıt alınırken hata oluştu:{e}")
             
-                else:
-                    break
+            else:
+                break
                 
 
             await asyncio.sleep(1)
