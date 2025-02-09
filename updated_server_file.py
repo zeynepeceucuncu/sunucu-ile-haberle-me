@@ -1,6 +1,7 @@
 from typing import Union
 from fastapi import FastAPI , WebSocket
 import json
+import uvicorn
 
 app=FastAPI()
 telemetry_data={}
@@ -39,3 +40,12 @@ async def websocket_endpoint(websocket:WebSocket):
         except json.JSONDecodeError:
             print("Hatalı Json Formatı")
         await websocket.send_text(f"alındı:{data}")
+
+if __name__=="__main__":
+    uvicorn.run(app,host="0.0.0.0",port=8000)
+    #sunucuya başka cihazlardan bağlantı sağlanabilmesi için
+    #host="0.0.0.0",sunucunun tüm ağ arayüzlerini dinlemesini sağlar
+    #bağlanacak cihazlar aynı wi-fi ya da eternet ağı içerisindeyse yerel ıp adresi ile bağlanabiliyorlar
+    
+
+    
