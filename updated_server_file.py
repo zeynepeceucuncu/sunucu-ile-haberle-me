@@ -22,24 +22,35 @@ async def get_telemetry():
 async def boundry_check():
     return count_data
 
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket:WebSocket):
-    await websocket.accept()
-    print("iha bağlantı kuruldu")
-    while True:
-        data=await websocket.receive_text()
-        print(f"ihadan gelen veri:{data}")
-        try:
+    connected_ip=websocket.client.host
+    allowed_ips=["127.0.0.1","192.168.1.105"]
+    if connected_ip not in allowed_ips:
+        await websocket.accept()
+        print("iha bağlantı kuruldu")
+        while True:
+           data=await websocket.receive_text()
+           print(f"ihadan gelen veri:{data}")
+           try:
             parsed_telemetry_data=json.loads(data)
             parsed_border_data=json.loads(data)
+            parsed_time_data=json.loads(data)
+            
             if parsed_telemetry_data.get("type")=="telemetry":
                 telemetry_data.update(parsed_telemetry_data)
             elif parsed_border_data.get("type")=="border_cross_count":
                 count_data.update(parsed_border_data)
+            elif parsed_time_data.get("type")=="border_cross_timer":
+                time_data.update(parsed_time_data)
+            
 
-        except json.JSONDecodeError:
+           except json.JSONDecodeError:
             print("Hatalı Json Formatı")
-        await websocket.send_text(f"alındı:{data}")
+            await websocket.send_text(f"alındı:{data}")
+    
+
 
 if __name__=="__main__":
     uvicorn.run(app,host="0.0.0.0",port=8000)
