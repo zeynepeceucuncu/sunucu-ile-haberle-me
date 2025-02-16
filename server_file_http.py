@@ -6,8 +6,6 @@ import asyncio
 import json
 
 app=FastAPI()
-telemetry_data={}
-count_data={}
 
 @app.get('/')
 async def root():
@@ -20,36 +18,35 @@ async def read_item(item_id:int,q:Union[str,None]=None):
 
 @app.post("/telemetry")
 async def receive_telemetry(request:Request):
+    global telemetry_data
     telemetry_data=await request.json()
     print(f"telemetry verileri{telemetry_data}")
     return{"status":"success","message":"veri alındı"}
 
 async def stream_telemetry():
     while True:
-        yield json.dumps(telemetry_data)
+        yield json.loads(telemetry_data)
         await asyncio.sleep(1)
 
 @app.get("/telemetry")
 async def get_telemetry():
- 
-    return StreamingResponse(stream_telemetry(),media_type='application/json')
-  
+    return telemetry_data
+    
 @app.post("/boundary_controller")
 async def receive_boundary_control(request:Request):
+    global count_data
     count_data = await request.json()
     print(f"boundary verileri{count_data}")
     return{"status":"success","message":"veri alındı"}
 
 async def stream_boundary_control():
     while True:
-        yield json.dumps(count_data)
+        yield json.loads(count_data)
         await asyncio.sleep(1)
 
 @app.get("/boundary_controller")
 async def boundry_check():
-
-    return StreamingResponse(stream_boundary_control(),media_type='application/json')
-    
+    return count_data
 
 if __name__=="__main__":
     uvicorn.run(app,host="0.0.0.0",port=8000)
