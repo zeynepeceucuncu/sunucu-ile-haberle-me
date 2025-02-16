@@ -1,3 +1,5 @@
+#veri server ekranında refresh etmeden yenilenmiyor ama terminalde akıyor
+#http
 import asyncio
 import json
 from pymavlink import mavutil
