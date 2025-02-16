@@ -78,10 +78,12 @@ async def send_data_to_server(altitude_baundary,latitude_baundary,longtitude_bou
                     "cross latitude border":count_of_crossing_the_latitude_border
 
                 }
+                updated_count_data=json.dumps(count_data)
+                updated_telemetry_data=json.dumps(telemetry_data)
 
                 try:
-                    data=await client.post('http://127.0.0.1:8000/telemetry',json=telemetry_data)
-                    data2=await client.post('http://127.0.0.1:8000/boundary_controller',json=count_data)
+                    data=await client.post('http://127.0.0.1:8000/telemetry',json=updated_telemetry_data)
+                    data2=await client.post('http://127.0.0.1:8000/boundary_controller',json=updated_count_data)
                     print(f"telemetry verileri gönderildi:{data.json()} ")
                     print(f"sınır kontrol verileri gönderildi:{data2.json()} ")
                 except Exception as e:
