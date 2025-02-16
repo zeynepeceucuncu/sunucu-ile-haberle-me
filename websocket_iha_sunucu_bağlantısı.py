@@ -1,3 +1,6 @@
+#telemetry verileri refresh olmadan yenilenmiyor ama termianalde akıyor
+#websocket
+
 import asyncio
 import websockets
 import json
