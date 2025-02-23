@@ -1,10 +1,12 @@
-#veri server ekranında refresh etmeden yenilenmiyor ama terminalde akıyor
+#veri doğrulama yapıyor
 #http
 import asyncio
 import json
 from pymavlink import mavutil
 import math
 import httpx
+import datetime
+
 
 async def send_data_to_server(altitude_baundary,latitude_baundary,longtitude_boundary):
 
@@ -26,50 +28,78 @@ async def send_data_to_server(altitude_baundary,latitude_baundary,longtitude_bou
             msg4=master.recv_match(type='ATTITUDE',blocking=True)
             print("msg4 değerlerine erişildi")
             msg5=master.recv_match(type='GPS_RAW_INT',blocking=True)
-            print("tüm verilere ulaşıldı")
-
-            if msg and msg2 and msg3 and msg4 and msg5:
+            print("msg5 değerlerine erişildi")
+            #msg6=master.recv_match(type='VISION_POSITION_ESTIMATE',blocking=True)
+            #print("msg6 değerlerine erişildi")
+            #msg7=master.recv_match(type='MISSION_ITEM',blocking=True)
+            #print("msg7 değerlerine erişildi")
+            
+            if msg and msg2 and msg3 and msg4 and msg5  :#and msg6 and msg7
                 print("veriler alındı")
                 latitude=msg.lat/1e7
                 altitude=msg.alt/1000
                 longtitude=msg.lon/1e7
-                heading=msg.hdg/100
+                #heading=msg.hdg/100 #iha'nın burnunun yöneldiği pusula açısı
                 x_speed=msg.vx
                 y_speed=msg.vy
                 z_speed=msg.vz
                 iha_dikilme=msg4.pitch
                 iha_yönelme=msg4.yaw
-                iha_yatış=msg4.roll
+                iha_yatiş=msg4.roll
                 remain_battery=msg2.battery_remaining
-                battery_tempreture=msg2.temperature
                 flight_mode=msg3.custom_mode
-                gps_saati=msg5.time_usec
+                
+                #hedef_merkez_x=msg6.x
+                #hedef_merkez_y=msg6.y
+                #hedef_genişlik=msg6.covariance[0]
+                #hedef_yüksekliği=msg6.covariance[4]
+               
+                #if msg7.command == mavutil.mavlink.MAV_CMD_NAV_FOLLOW:
+                    #iha_kilitlenme=1
+                #else:
+                    #iha_kilitlenme=0
+                     
+                
+                time=msg5.time_usec #mikrosaniye cinsinden zamanı elde ederiz
+                total_second=time/1000000
+                millisecond=time/1000
+                gps_saati={
+                    "saat":total_second/3600,
+                    "dakika":total_second/60,
+                    "saniye":total_second,
+                    "milisaniye":millisecond
+                }
+
 
                 telemetry_data={
-
                     "type":"telemetry",
-                    "latitude":latitude,
-                    "altitude":altitude,
-                    "longtitude":longtitude,
-                    "heading":heading,
-                    "speed":math.sqrt((x_speed*x_speed)+(y_speed*y_speed)+(z_speed*z_speed)),
+                    "takim_numarasi":12345,
+                    "iha_enlem":latitude,
+                    "iha_boylam":longtitude,
+                    "iha_irtifa":altitude,
+                    #"heading":heading,
                     "iha_dikilme":iha_dikilme,
-                    "iha_yönelme":iha_yönelme,
-                    "iha_yatış":iha_yatış,
-                    "remain_battery":remain_battery,
-                    "battery_tempreture":battery_tempreture,
-                    "flight_mode":flight_mode,
+                    "iha_yonelme":iha_yönelme,
+                    "iha_yatis":iha_yatiş,
+                    "iha_hiz":math.sqrt((x_speed*x_speed)+(y_speed*y_speed)+(z_speed*z_speed)),
+                    "iha_batarya":remain_battery,
+                    "iha_otonom":flight_mode,
+                    #"iha_kilitlenme":iha_kilitlenme,
+                    #"hedef_merkez_x":hedef_merkez_x,
+                    #"hedef_merkez_y":hedef_merkez_y,
+                    #"hedef_genişlik":hedef_genişlik,
+                    #"hedef_yüksekliği":hedef_yüksekliği,
                     "gps_saati":gps_saati
 
                 }
                 count_of_crossing_the_altitude_border=0
                 count_of_crossing_the_longtitude_border=0
                 count_of_crossing_the_latitude_border=0
-                if telemetry_data["latitude"]>latitude_baundary:
+                if telemetry_data["iha_enlem"]>latitude_baundary:
                     count_of_crossing_the_latitude_border+=1
-                elif telemetry_data["longtitude"] > longtitude_boundary:
+                elif telemetry_data["iha_boylam"] > longtitude_boundary:
                     count_of_crossing_the_longtitude_border+=1
-                elif telemetry_data["altitude"] < altitude_baundary:    
+                elif telemetry_data["iha_irtifa"] < altitude_baundary:    
                     count_of_crossing_the_altitude_border+=1
                 
                 count_data={
@@ -98,6 +128,12 @@ async def send_data_to_server(altitude_baundary,latitude_baundary,longtitude_bou
 
 
 async def main():
+
+    await send_data_to_server(20,50,70)
+        
+
+asyncio.run(main())
+
 
     await send_data_to_server(20,50,70)
         
