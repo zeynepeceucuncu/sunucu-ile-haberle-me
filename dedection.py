@@ -17,17 +17,17 @@ import httpx
 import datetime
 import threading
 
-"""# Gazebo import (opsiyonel)
+# Gazebo import (opsiyonel)
 GAZEBO_AVAILABLE = False
 try:
     from gz.transport13 import Node
     from gz.msgs10.image_pb2 import Image
     GAZEBO_AVAILABLE = True
 except ImportError:
-    pass"""
+    pass
 
 # Kamera Topic Adresi
-CAMERA_TOPIC = "/world/runway/model/uav1/model/mini_talon_vtail_camera/link/base_link/sensor/camera/image"
+CAMERA_TOPIC = "/world/fixedWingM2/model/uav1/model/mini_talon_vtail_camera/link/base_link/sensor/camera/image"
 
 # HSV Renk Aralıkları
 # Kırmızı (HSV'de kırmızı 0 ve 180 civarında olduğu için iki aralık)
@@ -49,7 +49,7 @@ MAX_CONTOUR_AREA = 50000 # Maximum kontur alanı
 detection_history = defaultdict(lambda: deque(maxlen=DETECTION_THRESHOLD))
 confirmed_targets = {}  # {id: (renk, şekil, bbox, son_görülme)}
 
-def take_data_from_iha(altitude_baundary,latitude_baundary,longtitude_boundary):
+def take_data_from_iha():
 
     print("mavlink bağlantısı kuruluyor")
     master=mavutil.mavlink_connection('udp:127.0.0.1:14550')
@@ -63,66 +63,59 @@ def take_data_from_iha(altitude_baundary,latitude_baundary,longtitude_boundary):
     }
     
     with httpx.Client() as client:
-        while True:
-            try:
-                msg=master.recv_match(blocking=False)
-                print("msg değerlerine erişildi")
+        try:
+            msg=master.recv_match(blocking=False)
+            print("msg değerlerine erişildi")
                 
-                if msg:
-                    print("veriler alındı")
-                    msg_type = msg.get_type()
-                    if msg_type == 'GLOBAL_POSITION_INT':
-                        vehicle_state["lat"] = msg.lat / 1e7
-                        vehicle_state["lon"] = msg.lon / 1e7
-                        vehicle_state["alt"] = msg.alt / 1000.0
-                        vehicle_state["vx"] = msg.vx
-                        vehicle_state["vy"] = msg.vy
-                        vehicle_state["vz"] = msg.vz
+            if msg:
+                print("veriler alındı")
+                msg_type = msg.get_type()
+                if msg_type == 'GLOBAL_POSITION_INT':
+                    vehicle_state["lat"] = msg.lat / 1e7
+                    vehicle_state["lon"] = msg.lon / 1e7
+                    vehicle_state["alt"] = msg.alt / 1000.0
+                    vehicle_state["vx"] = msg.vx
+                    vehicle_state["vy"] = msg.vy
+                    vehicle_state["vz"] = msg.vz
                         
-                    elif msg_type == 'ATTITUDE':
-                        vehicle_state["pitch"] = msg.pitch
-                        vehicle_state["roll"] = msg.roll
-                        vehicle_state["yaw"] = msg.yaw
+                elif msg_type == 'ATTITUDE':
+                    vehicle_state["pitch"] = msg.pitch
+                    vehicle_state["roll"] = msg.roll
+                    vehicle_state["yaw"] = msg.yaw
                         
-                    elif msg_type == 'BATTERY_STATUS':
-                        vehicle_state["battery"] = msg.battery_remaining
+                elif msg_type == 'BATTERY_STATUS':
+                    vehicle_state["battery"] = msg.battery_remaining
                         
-                    elif msg_type == 'HEARTBEAT':
-                        vehicle_state["mode"] = msg.custom_mode
+                elif msg_type == 'HEARTBEAT':
+                    vehicle_state["mode"] = msg.custom_mode
                         
-                    elif msg_type == 'GPS_RAW_INT':
-                        vehicle_state["time_usec"] = msg.time_usec
+                elif msg_type == 'GPS_RAW_INT':
+                    vehicle_state["time_usec"] = msg.time_usec
 
-                    telemetry_data={
-                        "type":"telemetry",
-                        "takim_numarasi":12345,
-                        "iha_enlem":vehicle_state["lat"],
-                        "iha_boylam":vehicle_state["lon"],
-                        "iha_irtifa":vehicle_state["alt"],
-                        "iha_dikilme":vehicle_state["pitch"],
-                        "iha_yonelme":vehicle_state["roll"],
-                        "iha_yatis":vehicle_state["yaw"],
-                        "iha_hiz":math.sqrt((vehicle_state["vx"]*vehicle_state["vx"])+(vehicle_state["vy"]*vehicle_state["vy"])+(vehicle_state["vz"]*vehicle_state["vz"])),
-                        "iha_batarya":vehicle_state["battery"],
-                        "iha_otonom":vehicle_state["mode"],
-                        "gps_saati":vehicle_state["time_usec"]
+                telemetry_data={
+                    "type":"telemetry",
+                    "takim_numarasi":12345,
+                    "iha_enlem":vehicle_state["lat"],
+                    "iha_boylam":vehicle_state["lon"],
+                    "iha_irtifa":vehicle_state["alt"],
+                    "iha_dikilme":vehicle_state["pitch"],
+                    "iha_yonelme":vehicle_state["roll"],
+                    "iha_yatis":vehicle_state["yaw"],
+                    "iha_hiz":math.sqrt((vehicle_state["vx"]*vehicle_state["vx"])+(vehicle_state["vy"]*vehicle_state["vy"])+(vehicle_state["vz"]*vehicle_state["vz"])),
+                    "iha_batarya":vehicle_state["battery"],
+                    "iha_otonom":vehicle_state["mode"],
+                    "gps_saati":vehicle_state["time_usec"]
 
-                    }
-                    count_of_crossing_the_altitude_border=0
-                    count_of_crossing_the_longtitude_border=0
-                    count_of_crossing_the_latitude_border=0
-                    if telemetry_data["iha_enlem"]>latitude_baundary:
-                        count_of_crossing_the_latitude_border+=1
-                    elif telemetry_data["iha_boylam"] > longtitude_boundary:
-                        count_of_crossing_the_longtitude_border+=1
-                    elif telemetry_data["iha_irtifa"] < altitude_baundary:    
-                        count_of_crossing_the_altitude_border+=1
-                    
-                    print(f"[SITL] Lat: {vehicle_state["lat"]}, Lon: {vehicle_state["lon"]}, Alt: {vehicle_state["alt"]}")
+                }
+                return telemetry_data
 
-            except Exception as e:
-                print(f"Telemetri Hatası: {e}")
-                time.sleep(1)
+        except Exception as e:
+            print(f"Telemetri Hatası: {e}")
+            time.sleep(1)
+        
+                
+        
+            
 
 def is_square(contour, epsilon_factor=0.03):
     """Konturun kare olup olmadığını kontrol et"""
@@ -255,6 +248,12 @@ def detect_shapes(frame):
                     
                     # Bounding box
                     x, y, w, h = cv2.boundingRect(contour)
+                    telem = take_data_from_iha()
+                    if veriler:
+                        enlem = telem["iha_enlem"]
+                        boylam = telem["iha_boylam"]
+                        irtifa = telem["iha_irtifa"]
+                        print(enlem,boylam,irtifa)
                     
                     detections.append({
                         'color': color_name,
@@ -453,7 +452,7 @@ def start_webcam(camera_id=0):
         cap.release()
         cv2.destroyAllWindows()
 
-"""def start_gazebo():
+def start_gazebo():
     #Gazebo modunda çalış
     if not GAZEBO_AVAILABLE:
         print("Gazebo transport kütüphanesi bulunamadı!")
@@ -472,7 +471,7 @@ def start_webcam(camera_id=0):
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nDurduruldu.")
-        cv2.destroyAllWindows()"""
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Hedef tespit sistemi - Webcam veya Gazebo')
@@ -492,11 +491,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
 
-    telemetry_thread = threading.Thread(target=take_data_from_iha, args=(20, 50, 70))
-    telemetry_thread.daemon = True 
-    telemetry_thread.start()
-    
-    #if args.mode == 'webcam':
-    start_webcam(args.camera_id)
-    #else:
-       # start_gazebo()
+    if args.mode == 'webcam':
+        start_webcam(args.camera_id)
+    else:
+        start_gazebo()
