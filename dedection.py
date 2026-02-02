@@ -27,7 +27,7 @@ except ImportError:
     pass
 
 # Kamera Topic Adresi
-CAMERA_TOPIC = "/world/fixedWingM2/model/uav1/model/mini_talon_vtail_camera/link/base_link/sensor/camera/image"
+CAMERA_TOPIC = "/camera"
 
 # HSV Renk Aralıkları
 # Kırmızı (HSV'de kırmızı 0 ve 180 civarında olduğu için iki aralık)
@@ -49,11 +49,11 @@ MAX_CONTOUR_AREA = 50000 # Maximum kontur alanı
 detection_history = defaultdict(lambda: deque(maxlen=DETECTION_THRESHOLD))
 confirmed_targets = {}  # {id: (renk, şekil, bbox, son_görülme)}
 
+master_connection = mavutil.mavlink_connection('udp:127.0.0.1:14550')
+master_connection.wait_heartbeat()
+
 def take_data_from_iha():
 
-    print("mavlink bağlantısı kuruluyor")
-    master=mavutil.mavlink_connection('udp:127.0.0.1:14550')
-    master.wait_heartbeat()
     print("mavlink bağlantısı  kuruldu")
     vehicle_state = {
         "lat": 0, "lon": 0, "alt": 0,
@@ -64,7 +64,7 @@ def take_data_from_iha():
     
     with httpx.Client() as client:
         try:
-            msg=master.recv_match(blocking=False)
+            msg=master_connection.recv_match(blocking=False)
             print("msg değerlerine erişildi")
                 
             if msg:
@@ -249,11 +249,11 @@ def detect_shapes(frame):
                     # Bounding box
                     x, y, w, h = cv2.boundingRect(contour)
                     telem = take_data_from_iha()
-                    if veriler:
+                    if telem:
                         enlem = telem["iha_enlem"]
                         boylam = telem["iha_boylam"]
                         irtifa = telem["iha_irtifa"]
-                        print(enlem,boylam,irtifa)
+                        print(f"Hedef Tespit Edildi! Konum: {enlem}, {boylam} İrtifa: {irtifa}")
                     
                     detections.append({
                         'color': color_name,
@@ -372,6 +372,9 @@ def draw_detections(frame, detections):
                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
 def process_stream(data_packet):
+    # Verinin geldiğini teyit edelim
+    # print(f"Veri geldi! Boyut: {len(data_packet.data)}") 
+    
     try:
         w = data_packet.width
         h = data_packet.height
@@ -380,16 +383,16 @@ def process_stream(data_packet):
 
         current_frame = None
 
+        # Format kontrolü ve Dönüşüm
         if total_size == w * h * 3:
-            # RGB -> BGR
             current_frame = cv2.cvtColor(raw_bytes.reshape((h, w, 3)), cv2.COLOR_RGB2BGR)
         elif total_size == w * h * 4:
-            # RGBA -> BGR
             current_frame = cv2.cvtColor(raw_bytes.reshape((h, w, 4)), cv2.COLOR_RGBA2BGR)
         elif total_size == w * h:
-            # Grayscale -> BGR
             current_frame = cv2.cvtColor(raw_bytes.reshape((h, w)), cv2.COLOR_GRAY2BGR)
         else:
+            # Eğer boyut tutmuyorsa nedenini görelim
+            print(f"HATA: Beklenmeyen veri boyutu! Genişlik: {w}, Yükseklik: {h}, Gelen Byte: {total_size}")
             return
 
         # Görüntü işleme pipeline
@@ -399,10 +402,14 @@ def process_stream(data_packet):
 
         # Ekrana bas
         cv2.imshow("UAV Feed - Target Detection", current_frame)
-        cv2.waitKey(1)
+        
+        # OpenCV penceresini canlı tutmak için kritik
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            pass
 
     except Exception as e:
-        pass
+        # İşte o gizli hatayı burada yakalayacağız!
+        print(f"KRİTİK HATA: {e}")
 
 def process_webcam_frame(frame):
     """Webcam frame'ini işle"""
