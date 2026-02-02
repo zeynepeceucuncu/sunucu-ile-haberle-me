@@ -134,8 +134,3 @@ async def main():
 
 asyncio.run(main())
 
-
-    await send_data_to_server(20,50,70)
-        
-
-asyncio.run(main())
